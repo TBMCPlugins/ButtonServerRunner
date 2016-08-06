@@ -18,10 +18,5 @@
 		</plugins>
 	</build>
 	<dependencies>
-		<dependency>
-			<groupId>org.xeustechnologies</groupId>
-			<artifactId>jcl-core</artifactId>
-			<version>2.6</version>
-		</dependency>
 	</dependencies>
 </project>
