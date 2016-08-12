@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 
 public class ServerRunner {
 	private static final String SERVER_VERSION = "1.9.2";
@@ -18,15 +19,18 @@ public class ServerRunner {
 		Thread t = new Thread() {
 			@Override
 			public void run() {
-				BufferedWriter output = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
+				PrintWriter output = new PrintWriter(p.getOutputStream());
 				BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 				try {
-					while (!stop)
-						output.write(br.readLine() + "\n\r");
+					while (!stop) {
+						String readLine = br.readLine();
+						output.println(readLine);
+						System.out.println("Read: " + readLine);
+					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				stop = true;
+				stop = true; //TODO: Communicate with a plugin with console input
 				System.out.println("Stopped " + Thread.currentThread().getName());
 			}
 		};
