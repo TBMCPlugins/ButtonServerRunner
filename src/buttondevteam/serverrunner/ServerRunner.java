@@ -16,7 +16,7 @@ public class ServerRunner {
 		System.out.println("Starting server...");
 		Process p = Runtime.getRuntime().exec(new String[] { "java", "-Xms512M", "-Xmx1024M", "-XX:MaxPermSize=128M",
 				"-jar", "spigot-" + SERVER_VERSION + ".jar" });
-		Thread t = new Thread() {
+		final Thread it = new Thread() {
 			@Override
 			public void run() {
 				PrintWriter output = new PrintWriter(p.getOutputStream());
@@ -25,18 +25,20 @@ public class ServerRunner {
 					while (!stop) {
 						String readLine = br.readLine();
 						output.println(readLine);
-						System.out.println("Read: " + readLine);
+						output.flush();
+						if (readLine.contains("stop"))
+							stop = true;
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-				stop = true; //TODO: Communicate with a plugin with console input
+				stop = true;
 				System.out.println("Stopped " + Thread.currentThread().getName());
 			}
 		};
-		t.setName("InputThread");
-		t.start();
-		t = new Thread() {
+		it.setName("InputThread");
+		it.start();
+		final Thread ot = new Thread() {
 			@Override
 			public void run() {
 				try {
@@ -53,14 +55,13 @@ public class ServerRunner {
 				System.out.println("Stopped " + Thread.currentThread().getName());
 			}
 		};
-		t.setName("OutputThread");
-		t.start();
+		ot.setName("OutputThread");
+		ot.start();
 		Thread.currentThread().setName("RestarterThread");
 		while (!stop) {
 			Thread.sleep(10000);
 			System.out.println("RESTART");
 		}
 		System.out.println("Stopped " + Thread.currentThread().getName());
-
 	}
 }
