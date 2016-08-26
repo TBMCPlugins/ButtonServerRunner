@@ -33,6 +33,7 @@ public class ServerRunner {
 			}
 			minmem = args[0];
 			maxmem = args[1];
+			server_version = args[2];
 		} else {
 			System.out.println("Error: Wrong number of arguments.");
 			System.out.println("Usage: java -jar ServerRunner.jar <minmem> <maxmem> <version>");
