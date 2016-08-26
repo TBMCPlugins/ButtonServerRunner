@@ -6,8 +6,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.configuration.file.YamlConfiguration;
+import jline.console.ConsoleReader;
+import jline.console.CursorBuffer;
 
 public class ServerRunner {
 	private static final int RESTART_MESSAGE_COUNT = 30;
@@ -17,8 +17,10 @@ public class ServerRunner {
 	private static volatile boolean stop = false;
 	private static volatile int restartcounter = RESTART_MESSAGE_COUNT;
 	private static volatile Process serverprocess;
-	private static volatile PrintWriter output;
+	private static volatile PrintWriter serveroutput;
 	private static volatile Thread rt;
+	private static volatile ConsoleReader reader;
+	private static volatile PrintWriter runnerout;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 		String minmem = "512M";
@@ -45,32 +47,33 @@ public class ServerRunner {
 		}
 		final String fminmem = minmem;
 		final String fmaxmem = maxmem;
-		System.out.println("Starting server...");
+		reader = new ConsoleReader();
+		reader.setPrompt("Runner>");
+		runnerout = new PrintWriter(reader.getOutput());
+		writeToScreen("Starting server...");
 		serverprocess = startServer(minmem, maxmem);
-		output = new PrintWriter(serverprocess.getOutputStream());
+		serveroutput = new PrintWriter(serverprocess.getOutputStream());
 		rt = Thread.currentThread();
 		final Thread it = new Thread() {
 			@Override
 			public void run() {
-				BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 				try {
-					while (!stop) {
-						String readLine = br.readLine();
+					String readLine;
+					while (!stop && (readLine = reader.readLine()) != null) {
 						/*
 						 * if (readLine.equalsIgnoreCase("restart")) output.println("stop"); else {
 						 */
 						if (readLine.equalsIgnoreCase("stop"))
 							ServerRunner.stop();
-						output.println(readLine);
-						System.out.println("Read line: " + readLine);
+						serveroutput.println(readLine);
 						// } // TODO: RunnerStates, stop Input- and OutputThread and restart them after backup?
-						output.flush();
+						serveroutput.flush();
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 				ServerRunner.stop();
-				System.out.println("Stopped " + Thread.currentThread().getName());
+				writeToScreen("Stopped " + Thread.currentThread().getName());
 			}
 		};
 		it.setName("InputThread");
@@ -79,38 +82,39 @@ public class ServerRunner {
 			@Override
 			public void run() {
 				try {
-					BufferedReader input = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
+					BufferedReader serverinput = new BufferedReader(
+							new InputStreamReader(serverprocess.getInputStream()));
 					String line;
 					while (true) {
-						if ((line = input.readLine()) != null) {
-							System.out.println(line);
+						if ((line = serverinput.readLine()) != null) {
+							writeToScreen(line);
 							if (line.contains("FAILED TO BIND TO PORT")) {
 								ServerRunner.stop();
-								System.out.println("A server is already running!");
+								writeToScreen("A server is already running!");
 							}
 						} else if (!stop) {
 							try {
-								input.close();
+								serverinput.close();
 							} catch (Exception e) {
 							}
 							try {
-								output.close();
+								serveroutput.close();
 							} catch (Exception e) {
 							}
-							System.out.println("Server stopped! Restarting...");
+							writeToScreen("Server stopped! Restarting...");
 							serverprocess = startServer(fminmem, fmaxmem);
-							input = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
-							output = new PrintWriter(serverprocess.getOutputStream());
+							serverinput = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
+							serveroutput = new PrintWriter(serverprocess.getOutputStream());
 							restartcounter = RESTART_MESSAGE_COUNT;
 						} else
 							break;
 					}
-					input.close();
+					serverinput.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 				ServerRunner.stop();
-				System.out.println("Stopped " + Thread.currentThread().getName());
+				writeToScreen("Stopped " + Thread.currentThread().getName());
 			}
 		}; // TODO: Rename start.sh and put empty one
 		ot.setName("OutputThread");
@@ -123,19 +127,19 @@ public class ServerRunner {
 						Thread.sleep(24 * 60 * 60 * 1000);
 					// Thread.sleep(10000);
 					else if (restartcounter > 0) {
-						sendMessage(output, "red", "-- Server restarting in " + restartcounter + " seconds!");
+						sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
 						Thread.sleep(1000); // TODO: Change to bossbar? (plugin)
 					} else {
-						System.out.println("Stopping server for restart...");
-						output.println("restart");
-						output.flush();
+						writeToScreen("Stopping server for restart...");
+						serveroutput.println("restart");
+						serveroutput.flush();
 					}
 					restartcounter--;
 				}
 			} catch (InterruptedException e) { // The while checks if stop is true and then stops
 			}
 		}
-		System.out.println("Stopped " + Thread.currentThread().getName());
+		writeToScreen("Stopped " + Thread.currentThread().getName());
 	}
 
 	private static Process startServer(String minmem, String maxmem) throws IOException {
@@ -146,11 +150,37 @@ public class ServerRunner {
 	private static void sendMessage(PrintWriter output, String color, String text) {
 		output.println("tellraw @a {\"text\":\"" + text + "\",\"color\":\"" + color + "\"}");
 		output.flush();
-		System.out.println(text);
+		writeToScreen(text);
 	}
 
 	private static void stop() {
 		stop = true;
 		rt.interrupt(); // The restarter thread sleeps for a long time and keeps the program running
+	}
+
+	private static void writeToScreen(String line) {
+		stashLine();
+		runnerout.println(line);
+		unstashLine();
+	}
+
+	private static CursorBuffer stashed;
+
+	private static void stashLine() {
+		stashed = reader.getCursorBuffer().copy();
+		try {
+			reader.getOutput().write("\u001b[1G\u001b[K");
+			reader.flush();
+		} catch (IOException e) {
+			// ignore
+		}
+	}
+
+	private static void unstashLine() {
+		try {
+			reader.resetPromptLine(reader.getPrompt(), stashed.toString(), stashed.cursor);
+		} catch (IOException e) {
+			// ignore
+		}
 	}
 }
