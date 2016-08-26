@@ -21,8 +21,28 @@ public class ServerRunner {
 	private static volatile Thread rt;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
+		String minmem = "512M";
+		String maxmem = "1G";
+		if (args.length == 2) {
+			if ((!args[0].contains("G") && !args[0].contains("M"))
+					|| (!args[1].contains("G") && !args[0].contains("M"))) {
+				System.out.println("Error: Invalid arguments.");
+				System.out.println("Usage: java -jar <minmem> <maxmem>");
+				System.out.println("Example: java -jar 1G 2G");
+				return;
+			}
+			minmem = args[0];
+			maxmem = args[1];
+		} else if (args.length > 2) {
+			System.out.println("Error: Too many arguments.");
+			System.out.println("Usage: java -jar <minmem> <maxmem>");
+			System.out.println("Example: java -jar 1G 2G");
+			return;
+		}
+		final String fminmem = minmem;
+		final String fmaxmem = maxmem;
 		System.out.println("Starting server...");
-		serverprocess = startServer();
+		serverprocess = startServer(minmem, maxmem);
 		output = new PrintWriter(serverprocess.getOutputStream());
 		rt = Thread.currentThread();
 		final Thread it = new Thread() {
@@ -74,7 +94,7 @@ public class ServerRunner {
 							} catch (Exception e) {
 							}
 							System.out.println("Server stopped! Restarting...");
-							serverprocess = startServer();
+							serverprocess = startServer(fminmem, fmaxmem);
 							input = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
 							output = new PrintWriter(serverprocess.getOutputStream());
 							restartcounter = RESTART_MESSAGE_COUNT;
@@ -114,9 +134,9 @@ public class ServerRunner {
 		System.out.println("Stopped " + Thread.currentThread().getName());
 	}
 
-	private static Process startServer() throws IOException {
-		return Runtime.getRuntime().exec(new String[] { "java", "-Xms512M", "-Xmx1024M", "-XX:MaxPermSize=128M", "-jar",
-				"spigot-" + SERVER_VERSION + ".jar" });
+	private static Process startServer(String minmem, String maxmem) throws IOException {
+		return Runtime.getRuntime().exec(new String[] { "java", "-Xms" + minmem, "-Xmx" + maxmem,
+				"-XX:MaxPermSize=128M", "-jar", "spigot-" + SERVER_VERSION + ".jar" });
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
