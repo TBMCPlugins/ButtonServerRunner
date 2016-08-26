@@ -12,7 +12,7 @@ import org.bukkit.configuration.file.YamlConfiguration;
 public class ServerRunner {
 	private static final int RESTART_MESSAGE_COUNT = 30;
 
-	private static final String SERVER_VERSION = "1.9.2";
+	private static volatile String server_version = "1.9.2";
 
 	private static volatile boolean stop = false;
 	private static volatile int restartcounter = RESTART_MESSAGE_COUNT;
@@ -23,21 +23,24 @@ public class ServerRunner {
 	public static void main(String[] args) throws IOException, InterruptedException {
 		String minmem = "512M";
 		String maxmem = "1G";
-		if (args.length == 2) {
+		if (args.length == 3) {
 			if ((!args[0].contains("G") && !args[0].contains("M"))
 					|| (!args[1].contains("G") && !args[0].contains("M"))) {
 				System.out.println("Error: Invalid arguments.");
-				System.out.println("Usage: java -jar <minmem> <maxmem>");
-				System.out.println("Example: java -jar 1G 2G");
+				System.out.println("Usage: java -jar ServerRunner.jar <minmem> <maxmem> <version>");
+				System.out.println("Example: java -jar ServerRunner.jar 1G 2G");
 				return;
 			}
 			minmem = args[0];
 			maxmem = args[1];
-		} else if (args.length > 2) {
-			System.out.println("Error: Too many arguments.");
-			System.out.println("Usage: java -jar <minmem> <maxmem>");
-			System.out.println("Example: java -jar 1G 2G");
+		} else {
+			System.out.println("Error: Wrong number of arguments.");
+			System.out.println("Usage: java -jar ServerRunner.jar <minmem> <maxmem> <version>");
+			System.out.println("Example: java -jar ServerRunner.jar 1G 2G 1.9.2");
 			return;
+		}
+		if (!new File("spigot-" + server_version + ".jar").exists()) {
+
 		}
 		final String fminmem = minmem;
 		final String fmaxmem = maxmem;
@@ -136,7 +139,7 @@ public class ServerRunner {
 
 	private static Process startServer(String minmem, String maxmem) throws IOException {
 		return Runtime.getRuntime().exec(new String[] { "java", "-Xms" + minmem, "-Xmx" + maxmem,
-				"-XX:MaxPermSize=128M", "-jar", "spigot-" + SERVER_VERSION + ".jar" });
+				"-XX:MaxPermSize=128M", "-jar", "spigot-" + server_version + ".jar" });
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
