@@ -5,12 +5,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 
 public class ServerRunner {
 	private static final int RESTART_MESSAGE_COUNT = 30;
+
+	private static final int interval = 24; // hours
 
 	private static volatile String server_version = "1.9.2";
 
@@ -60,13 +64,9 @@ public class ServerRunner {
 				try {
 					String readLine;
 					while (!stop && (readLine = reader.readLine()) != null) {
-						/*
-						 * if (readLine.equalsIgnoreCase("restart")) output.println("stop"); else {
-						 */
 						if (readLine.equalsIgnoreCase("stop"))
 							ServerRunner.stop();
 						serveroutput.println(readLine);
-						// } // TODO: RunnerStates, stop Input- and OutputThread and restart them after backup?
 						serveroutput.flush();
 					}
 				} catch (IOException e) {
@@ -83,7 +83,7 @@ public class ServerRunner {
 			public void run() {
 				try {
 					BufferedReader serverinput = new BufferedReader(
-							new InputStreamReader(serverprocess.getInputStream()));
+							new InputStreamReader(serverprocess.getInputStream(), StandardCharsets.UTF_8));
 					String line;
 					while (true) {
 						if ((line = serverinput.readLine()) != null) {
@@ -116,16 +116,20 @@ public class ServerRunner {
 				ServerRunner.stop();
 				writeToScreen("Stopped " + Thread.currentThread().getName());
 			}
-		}; // TODO: Rename start.sh and put empty one
+		};
 		ot.setName("OutputThread");
 		ot.start();
 		Thread.currentThread().setName("RestarterThread");
+		long starttime = syncStart(3);
+		boolean firstrun = true;
 		while (!stop) {
 			try {
 				if (restartcounter >= 0) {
 					if (restartcounter == RESTART_MESSAGE_COUNT)
-						Thread.sleep(24 * 60 * 60 * 1000);
-					// Thread.sleep(10000);
+						if (firstrun)
+							Thread.sleep(starttime);
+						else
+							Thread.sleep(interval * 3600000);
 					else if (restartcounter > 0) {
 						sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
 						Thread.sleep(1000); // TODO: Change to bossbar? (plugin)
@@ -143,8 +147,8 @@ public class ServerRunner {
 	}
 
 	private static Process startServer(String minmem, String maxmem) throws IOException {
-		return Runtime.getRuntime().exec(new String[] { "java", "-Xms" + minmem, "-Xmx" + maxmem,
-				"-XX:MaxPermSize=128M", "-jar", "spigot-" + server_version + ".jar" });
+		return Runtime.getRuntime().exec(new String[] { "java", "-Djline.terminal=jline.UnixTerminal", "-Xms" + minmem,
+				"-Xmx" + maxmem, "-XX:MaxPermSize=128M", "-jar", "spigot-" + server_version + ".jar" });
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
@@ -183,4 +187,20 @@ public class ServerRunner {
 			// ignore
 		}
 	}
+
+	private static double hoursOf(Date parsedTime) {
+		return parsedTime.getHours() + parsedTime.getMinutes() / 60. + parsedTime.getSeconds() / 3600.;
+	}
+
+	private static long syncStart(double startHour) { // Copied original code from SimpleBackup
+		double now = hoursOf(new Date());
+		double diff = now - startHour;
+		if (diff < 0) {
+			diff += 24;
+		}
+		double intervalPart = diff - Math.floor(diff / interval) * interval;
+		double remaining = interval - intervalPart;
+		return (long) (remaining * 3600000);
+	}
+
 }
