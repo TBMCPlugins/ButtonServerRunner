@@ -126,9 +126,11 @@ public class ServerRunner {
 			try {
 				if (restartcounter >= 0) {
 					if (restartcounter == RESTART_MESSAGE_COUNT)
-						if (firstrun)
+						if (firstrun) {
+							// writeToScreen("Sleeping for " + starttime);
 							Thread.sleep(starttime);
-						else
+							firstrun = false;
+						} else
 							Thread.sleep(interval * 3600000);
 					else if (restartcounter > 0) {
 						sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
