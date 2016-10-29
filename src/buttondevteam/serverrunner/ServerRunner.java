@@ -12,6 +12,8 @@ import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 
 public class ServerRunner {
+	private static final int RESTART_HOUR = 4;
+
 	private static final int RESTART_MESSAGE_COUNT = 30;
 
 	private static final int interval = 24; // hours
@@ -120,7 +122,7 @@ public class ServerRunner {
 		ot.setName("OutputThread");
 		ot.start();
 		Thread.currentThread().setName("RestarterThread");
-		long starttime = syncStart(3);
+		long starttime = syncStart(RESTART_HOUR);
 		boolean firstrun = true;
 		while (!stop) {
 			try {
