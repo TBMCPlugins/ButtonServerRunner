@@ -18,7 +18,7 @@ public class ServerRunner {
 
 	private static final int interval = 24; // hours
 
-	private static volatile String server_version = "1.11";
+	private static volatile String server_version; // SET VERSION IN RUN.SH
 
 	private static volatile boolean stop = false;
 	private static volatile int restartcounter = RESTART_MESSAGE_COUNT;
