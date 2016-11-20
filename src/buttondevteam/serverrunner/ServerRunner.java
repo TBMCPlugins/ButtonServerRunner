@@ -14,7 +14,7 @@ import jline.console.CursorBuffer;
 public class ServerRunner {
 	private static final int RESTART_HOUR = 4;
 
-	private static final int RESTART_MESSAGE_COUNT = 30;
+	private static final int RESTART_MESSAGE_COUNT = 60;
 
 	private static final int interval = 24; // hours
 
@@ -134,7 +134,7 @@ public class ServerRunner {
 							firstrun = false;
 						} else
 							Thread.sleep(interval * 3600000);
-					else if (restartcounter > 0) {
+					else if (restartcounter > 0 && restartcounter % 10 == 0) {
 						sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
 						Thread.sleep(1000); // TODO: Change to bossbar? (plugin)
 					} else {
