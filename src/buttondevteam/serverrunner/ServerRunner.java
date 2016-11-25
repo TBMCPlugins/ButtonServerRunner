@@ -135,8 +135,9 @@ public class ServerRunner {
 							firstrun = false;
 						} else
 							Thread.sleep(interval * 3600000);
-					else if (restartcounter > 0 && restartcounter % 10 == 0) {
-						sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
+					else if (restartcounter > 0) {
+						if (restartcounter % 10 == 0)
+							sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
 						Thread.sleep(1000); // TODO: Change to bossbar? (plugin)
 					} else {
 						writeToScreen("Stopping server for restart...");
