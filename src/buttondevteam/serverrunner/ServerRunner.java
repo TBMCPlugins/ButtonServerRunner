@@ -49,7 +49,8 @@ public class ServerRunner {
 			return;
 		}
 		if (!new File("spigot-" + server_version + ".jar").exists()) {
-
+			System.out.println("The server JAR for " + server_version + " cannot be found!");
+			return;
 		}
 		final String fminmem = minmem;
 		final String fmaxmem = maxmem;
