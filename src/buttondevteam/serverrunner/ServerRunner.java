@@ -7,6 +7,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.regex.Pattern;
 
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
@@ -27,6 +28,8 @@ public class ServerRunner {
 	private static volatile Thread rt;
 	private static volatile ConsoleReader reader;
 	private static volatile PrintWriter runnerout;
+
+	private static volatile boolean customrestartfailed = false;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 		String minmem = "512M";
@@ -95,6 +98,10 @@ public class ServerRunner {
 								ServerRunner.stop();
 								writeToScreen("A server is already running!");
 							}
+							if (Pattern.matches(
+									"[\\d\\d:\\d\\d:\\d\\d INFO]: Unknown command. Type \"/help\" for help.\\s+", line))
+								customrestartfailed = true;
+
 						} else if (!stop) {
 							try {
 								serverinput.close();
@@ -128,21 +135,35 @@ public class ServerRunner {
 		while (!stop) {
 			try {
 				if (restartcounter >= 0) {
-					if (restartcounter == RESTART_MESSAGE_COUNT)
+					if (restartcounter == RESTART_MESSAGE_COUNT) {
 						if (firstrun) {
 							// writeToScreen("Sleeping for " + starttime);
 							Thread.sleep(starttime);
 							firstrun = false;
 						} else
 							Thread.sleep(interval * 3600000);
-					else if (restartcounter > 0) {
-						if (restartcounter % 10 == 0)
-							sendMessage(serveroutput, "red", "-- Server restarting in " + restartcounter + " seconds!");
-						Thread.sleep(1000); // TODO: Change to bossbar? (plugin)
-					} else {
-						writeToScreen("Stopping server for restart...");
-						serveroutput.println("restart");
+						customrestartfailed = false;
+						serveroutput.println("schrestart");
 						serveroutput.flush();
+					} else if (restartcounter > 0) {
+						if (customrestartfailed) {
+							if (restartcounter % 10 == 0)
+								sendMessage(serveroutput, "red",
+										"-- Server restarting in " + restartcounter + " seconds!");
+							Thread.sleep(1000);
+						} else {
+							restartcounter = RESTART_MESSAGE_COUNT;
+							continue; // Don't decrement the counter so it will sleep the full time
+						}
+					} else {
+						Thread.sleep(500);
+						if (customrestartfailed) {
+							writeToScreen("Stopping server for restart...");
+							serveroutput.println("restart");
+							serveroutput.flush();
+							customrestartfailed = false;
+						}
+						Thread.sleep(5000); // Don't run needless cycles
 					}
 					restartcounter--;
 				}
