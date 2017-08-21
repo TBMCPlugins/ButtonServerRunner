@@ -6,14 +6,15 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.Date;
+import java.util.Calendar;
+import java.util.TimeZone;
 import java.util.regex.Pattern;
 
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 
 public class ServerRunner {
-	private static final int RESTART_HOUR = 4;
+	private static final int RESTART_HOUR = 12;
 
 	private static final int RESTART_MESSAGE_COUNT = 60;
 
@@ -32,8 +33,8 @@ public class ServerRunner {
 	private static volatile boolean customrestartfailed = false;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		String minmem = "512M";
-		String maxmem = "1G";
+		String minmem;
+		String maxmem;
 		if (args.length == 3) {
 			if ((!args[0].contains("G") && !args[0].contains("M"))
 					|| (!args[1].contains("G") && !args[0].contains("M"))) {
@@ -131,6 +132,7 @@ public class ServerRunner {
 		ot.start();
 		Thread.currentThread().setName("RestarterThread");
 		long starttime = syncStart(RESTART_HOUR);
+		System.out.println("Restart scheduled in " + starttime / 3600000f);
 		boolean firstrun = true;
 		while (!stop) {
 			try {
@@ -215,12 +217,13 @@ public class ServerRunner {
 		}
 	}
 
-	private static double hoursOf(Date parsedTime) {
-		return parsedTime.getHours() + parsedTime.getMinutes() / 60. + parsedTime.getSeconds() / 3600.;
+	private static double hoursOf(Calendar parsedTime) {
+		return parsedTime.get(Calendar.HOUR_OF_DAY) + parsedTime.get(Calendar.MINUTE) / 60.
+				+ parsedTime.get(Calendar.SECOND) / 3600.;
 	}
 
 	private static long syncStart(double startHour) { // Copied original code from SimpleBackup
-		double now = hoursOf(new Date());
+		double now = hoursOf(Calendar.getInstance(TimeZone.getTimeZone("GMT")));
 		double diff = now - startHour;
 		if (diff < 0) {
 			diff += 24;
