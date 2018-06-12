@@ -1,29 +1,24 @@
 package buttondevteam.serverrunner;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import jline.console.ConsoleReader;
+import jline.console.CursorBuffer;
+import org.yaml.snakeyaml.Yaml;
+
+import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.TimeZone;
 import java.util.regex.Pattern;
 
-import jline.console.ConsoleReader;
-import jline.console.CursorBuffer;
-
 public class ServerRunner {
-	private static final int RESTART_HOUR = 12;
-
 	private static final int RESTART_MESSAGE_COUNT = 60;
 
 	private static final int interval = 24; // hours
 
-	private static volatile String server_version; // SET VERSION IN RUN.SH
-
 	private static volatile boolean stop = false;
-	private static volatile int restartcounter = RESTART_MESSAGE_COUNT;
+	private static int restartcounter = RESTART_MESSAGE_COUNT;
 	private static volatile Process serverprocess;
 	private static volatile PrintWriter serveroutput;
 	private static volatile Thread rt;
@@ -32,37 +27,24 @@ public class ServerRunner {
 
 	private static volatile boolean customrestartfailed = false;
 
-	public static void main(String[] args) throws IOException, InterruptedException {
-		String minmem;
-		String maxmem;
-		if (args.length == 3) {
-			if ((!args[0].contains("G") && !args[0].contains("M"))
-					|| (!args[1].contains("G") && !args[0].contains("M"))) {
-				System.out.println("Error: Invalid arguments.");
-				System.out.println("Usage: java -jar ServerRunner.jar <minmem> <maxmem> <version>");
-				System.out.println("Example: java -jar ServerRunner.jar 1G 2G");
-				return;
-			}
-			minmem = args[0];
-			maxmem = args[1];
-			server_version = args[2];
-		} else {
-			System.out.println("Error: Wrong number of arguments.");
-			System.out.println("Usage: java -jar ServerRunner.jar <minmem> <maxmem> <version>");
-			System.out.println("Example: java -jar ServerRunner.jar 1G 2G 1.9.2");
+	public static void main(String[] args) throws IOException {
+		Yaml yaml = new Yaml();
+		File f=new File("plugins/ServerRunner/config.yml");
+		f.getParentFile().mkdirs();
+		final Config config;
+		if(!f.exists())
+			Files.write(f.toPath(), Collections.singleton(yaml.dump(config = new Config())));
+		else
+			config=yaml.load(new FileInputStream(f));
+		if (!new File("spigot-" + config.serverVersion + ".jar").exists()) {
+			System.out.println("The server JAR for " + config.serverVersion + " cannot be found!");
 			return;
 		}
-		if (!new File("spigot-" + server_version + ".jar").exists()) {
-			System.out.println("The server JAR for " + server_version + " cannot be found!");
-			return;
-		}
-		final String fminmem = minmem;
-		final String fmaxmem = maxmem;
 		reader = new ConsoleReader();
 		reader.setPrompt("Runner>");
 		runnerout = new PrintWriter(reader.getOutput());
 		writeToScreen("Starting server...");
-		serverprocess = startServer(minmem, maxmem);
+		serverprocess = startServer(config);
 		serveroutput = new PrintWriter(serverprocess.getOutputStream());
 		rt = Thread.currentThread();
 		final Thread it = new Thread() {
@@ -100,20 +82,22 @@ public class ServerRunner {
 								writeToScreen("A server is already running!");
 							}
 							if (Pattern.matches(
-									"[\\d\\d:\\d\\d:\\d\\d INFO]: Unknown command. Type \"/help\" for help.\\s+", line))
+									"\\[\\d\\d:\\d\\d:\\d\\d INFO]: Unknown command. Type \"/help\" for help.\\s+", line))
 								customrestartfailed = true;
 
 						} else if (!stop) {
 							try {
 								serverinput.close();
 							} catch (Exception e) {
+								e.printStackTrace();
 							}
 							try {
 								serveroutput.close();
 							} catch (Exception e) {
+								e.printStackTrace();
 							}
 							writeToScreen("Server stopped! Restarting...");
-							serverprocess = startServer(fminmem, fmaxmem);
+							serverprocess = startServer(config);
 							serverinput = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
 							serveroutput = new PrintWriter(serverprocess.getOutputStream());
 							restartcounter = RESTART_MESSAGE_COUNT;
@@ -131,7 +115,7 @@ public class ServerRunner {
 		ot.setName("OutputThread");
 		ot.start();
 		Thread.currentThread().setName("RestarterThread");
-		long starttime = syncStart(RESTART_HOUR);
+		long starttime = syncStart(config.restartAt);
 		System.out.println("Restart scheduled in " + starttime / 3600000f);
 		boolean firstrun = true;
 		while (!stop) {
@@ -175,9 +159,8 @@ public class ServerRunner {
 		writeToScreen("Stopped " + Thread.currentThread().getName());
 	}
 
-	private static Process startServer(String minmem, String maxmem) throws IOException {
-		return Runtime.getRuntime().exec(new String[] { "java", "-Djline.terminal=jline.UnixTerminal", "-Xms" + minmem,
-				"-Xmx" + maxmem, "-XX:MaxPermSize=128M", "-jar", "spigot-" + server_version + ".jar" });
+	private static Process startServer(Config config) throws IOException {
+		return Runtime.getRuntime().exec(("java "+config.serverParams+" -jar spigot-" + config.serverVersion + ".jar").split(" "));
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
