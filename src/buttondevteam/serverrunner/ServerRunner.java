@@ -52,13 +52,20 @@ public class ServerRunner {
 			public void run() {
 				try {
 					String readLine;
-					while (!stop && (readLine = reader.readLine()) != null) {
-						if (readLine.equalsIgnoreCase("stop"))
-							ServerRunner.stop();
-						serveroutput.println(readLine);
-						serveroutput.flush();
+					while (!stop) {
+						try {
+							if ((readLine = reader.readLine()) == null)
+								break;
+							if (readLine.equalsIgnoreCase("stop"))
+								ServerRunner.stop();
+							serveroutput.println(readLine);
+							serveroutput.flush();
+						} catch (Exception e) {
+							e.printStackTrace();
+							Thread.sleep(100); //Sleep a bit and keep going
+						}
 					}
-				} catch (IOException e) {
+				} catch (InterruptedException e) {
 					e.printStackTrace();
 				}
 				ServerRunner.stop();
