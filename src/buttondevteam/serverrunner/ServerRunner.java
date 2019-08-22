@@ -29,14 +29,17 @@ public class ServerRunner {
 
 	public static void main(String[] args) throws IOException {
 		Yaml yaml = new Yaml();
-		File f=new File("plugins/ServerRunner/config.yml");
+		File f = new File("plugins/ServerRunner/config.yml");
 		f.getParentFile().mkdirs();
 		final Config config;
-		if(!f.exists())
+		if (!f.exists())
 			Files.write(f.toPath(), Collections.singleton(yaml.dump(config = new Config())));
 		else
-			config=yaml.load(new FileInputStream(f));
-		if (!new File("spigot-" + config.serverVersion + ".jar").exists()) {
+			config = yaml.load(new FileInputStream(f));
+		final File serverJar = new File(config.customJar == null || config.customJar.length() == 0
+				? "spigot-" + config.serverVersion + ".jar"
+				: config.customJar);
+		if (!serverJar.exists()) {
 			System.out.println("The server JAR for " + config.serverVersion + " cannot be found!");
 			return;
 		}
@@ -44,7 +47,7 @@ public class ServerRunner {
 		reader.setPrompt("Runner>");
 		runnerout = new PrintWriter(reader.getOutput());
 		writeToScreen("Starting server...");
-		serverprocess = startServer(config);
+		serverprocess = startServer(config, serverJar);
 		serveroutput = new PrintWriter(serverprocess.getOutputStream());
 		rt = Thread.currentThread();
 		final Thread it = new Thread() {
@@ -104,7 +107,7 @@ public class ServerRunner {
 								e.printStackTrace();
 							}
 							writeToScreen("Server stopped! Restarting...");
-							serverprocess = startServer(config);
+							serverprocess = startServer(config, serverJar);
 							serverinput = new BufferedReader(new InputStreamReader(serverprocess.getInputStream()));
 							serveroutput = new PrintWriter(serverprocess.getOutputStream());
 							restartcounter = RESTART_MESSAGE_COUNT;
@@ -166,8 +169,8 @@ public class ServerRunner {
 		writeToScreen("Stopped " + Thread.currentThread().getName());
 	}
 
-	private static Process startServer(Config config) throws IOException {
-		return Runtime.getRuntime().exec(("java "+config.serverParams+" -jar spigot-" + config.serverVersion + ".jar").split(" "));
+	private static Process startServer(Config config, File serverJar) throws IOException {
+		return Runtime.getRuntime().exec(new String[]{"java", config.serverParams, "-jar", serverJar.getPath()});
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
