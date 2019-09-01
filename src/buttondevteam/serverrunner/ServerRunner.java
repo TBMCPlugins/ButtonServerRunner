@@ -170,7 +170,7 @@ public class ServerRunner {
 	}
 
 	private static Process startServer(Config config, File serverJar) throws IOException {
-		return Runtime.getRuntime().exec(new String[]{"java", config.serverParams, "-jar", serverJar.getPath()});
+		return Runtime.getRuntime().exec(("java " + config.serverParams + " -jar " + serverJar.getPath()).split(" ")); //Need to use split() because of the supplied params
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
