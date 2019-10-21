@@ -126,7 +126,7 @@ public class ServerRunner {
 		ot.start();
 		Thread.currentThread().setName("RestarterThread");
 		long starttime = syncStart(config.restartAt);
-		System.out.println("Restart scheduled in " + starttime / 3600000f);
+		writeToScreen("Restart scheduled in " + starttime / 3600000f);
 		boolean firstrun = true;
 		while (!stop) {
 			try {
@@ -170,7 +170,11 @@ public class ServerRunner {
 	}
 
 	private static Process startServer(Config config, File serverJar) throws IOException {
-		return Runtime.getRuntime().exec(("java " + config.serverParams + " -jar " + serverJar.getPath()).split(" ")); //Need to use split() because of the supplied params
+		ProcessBuilder pb = new ProcessBuilder(("java " + config.serverParams + " -jar " + serverJar.getPath()).split(" "));
+		pb.environment().put("TERM", "xterm");
+		return pb.start();
+		/*return Runtime.getRuntime().exec(,
+		new String[] { "TERM=xterm" }); //Need to use split() because of the supplied params*/
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
