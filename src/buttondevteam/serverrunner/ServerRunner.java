@@ -1,5 +1,6 @@
 package buttondevteam.serverrunner;
 
+import jline.Terminal;
 import jline.console.ConsoleReader;
 import jline.console.CursorBuffer;
 import org.yaml.snakeyaml.Yaml;
@@ -124,6 +125,29 @@ public class ServerRunner {
 		};
 		ot.setName("OutputThread");
 		ot.start();
+		final Thread errt = new Thread() {
+			@Override
+			public void run() {
+				try {
+					BufferedReader serverinput = new BufferedReader(
+							new InputStreamReader(serverprocess.getErrorStream(), StandardCharsets.UTF_8));
+					String line;
+					while (true) {
+						if ((line = serverinput.readLine()) != null) {
+							writeToScreen(line);
+						} else if (stop)
+							break;
+					}
+					serverinput.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				ServerRunner.stop();
+				writeToScreen("Stopped " + Thread.currentThread().getName());
+			}
+		};
+		errt.setName("ErrorThread");
+		errt.start();
 		Thread.currentThread().setName("RestarterThread");
 		long starttime = syncStart(config.restartAt);
 		writeToScreen("Restart scheduled in " + starttime / 3600000f);
@@ -170,8 +194,9 @@ public class ServerRunner {
 	}
 
 	private static Process startServer(Config config, File serverJar) throws IOException {
-		ProcessBuilder pb = new ProcessBuilder(("java " + config.serverParams + " -jar " + serverJar.getPath()).split(" "));
+		ProcessBuilder pb = new ProcessBuilder("bash", "-i", "-c", "java " + config.serverParams + " -jar " + serverJar.getPath());
 		pb.environment().put("TERM", "xterm");
+		Terminal t;
 		return pb.start();
 		/*return Runtime.getRuntime().exec(,
 		new String[] { "TERM=xterm" }); //Need to use split() because of the supplied params*/
