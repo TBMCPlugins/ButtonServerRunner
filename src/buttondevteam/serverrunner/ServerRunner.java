@@ -25,6 +25,7 @@ public class ServerRunner {
 	private static volatile Thread rt;
 	private static volatile ConsoleReader reader;
 	private static volatile PrintWriter runnerout;
+	private static volatile Thread it;
 
 	private static volatile boolean customrestartfailed = false;
 
@@ -51,15 +52,15 @@ public class ServerRunner {
 		serverprocess = startServer(config, serverJar);
 		serveroutput = new PrintWriter(serverprocess.getOutputStream());
 		rt = Thread.currentThread();
-		final Thread it = new Thread() {
+		it = new Thread() {
 			@Override
 			public void run() {
 				try {
 					String readLine;
-					while (!stop) {
+					while (!stop || serveroutput.) { //TODO: Store if stream got closed (enum for state)?
 						try {
 							if ((readLine = reader.readLine()) == null)
-								break;
+								continue; //Keep going until we stop
 							if (readLine.equalsIgnoreCase("stop"))
 								ServerRunner.stop();
 							serveroutput.println(readLine);
@@ -194,12 +195,8 @@ public class ServerRunner {
 	}
 
 	private static Process startServer(Config config, File serverJar) throws IOException {
-		ProcessBuilder pb = new ProcessBuilder("bash", "-i", "-c", "java " + config.serverParams + " -jar " + serverJar.getPath());
-		pb.environment().put("TERM", "xterm");
-		Terminal t;
+		ProcessBuilder pb = new ProcessBuilder(("java " + config.serverParams + " -jar " + serverJar.getPath()).split(" ")); //Need to use split() because of the supplied params
 		return pb.start();
-		/*return Runtime.getRuntime().exec(,
-		new String[] { "TERM=xterm" }); //Need to use split() because of the supplied params*/
 	}
 
 	private static void sendMessage(PrintWriter output, String color, String text) {
@@ -211,6 +208,7 @@ public class ServerRunner {
 	private static void stop() {
 		stop = true;
 		rt.interrupt(); // The restarter thread sleeps for a long time and keeps the program running
+		it.interrupt(); // The input thread will listen until it's stopped
 	}
 
 	private static void writeToScreen(String line) {
